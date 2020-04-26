@@ -97,6 +97,10 @@ hydrogen_path = expanduser('~/.hydrogen/data/drumkits')
 interleave = 1 / 3
 
 
+def change_extension(file, extension):
+	return '%s.%s' % (splitext(file)[0], extension)
+
+
 def create_folder(name):
 	path = join(hydrogen_path, name)
 	try:
@@ -127,7 +131,7 @@ def process_files(root, files, path, output_format):
 		print('Processing %s...' % file)
 		destination = join(path, file)
 		if output_format:
-			destination = splitext(destination)[0] + '.' + output_format
+			destination = change_extension(destination, output_format)
 		if exists(destination):
 			continue
 		source = join(root, file)
@@ -135,6 +139,7 @@ def process_files(root, files, path, output_format):
 			check_call(['sox', source, destination], stdout=DEVNULL)
 		else:
 			copyfile(source, destination)
+		yield destination
 
 
 def parse():
@@ -175,20 +180,21 @@ def main():
 	if output_format and not shutil.which('sox'):
 		sys.exit('error: sox not found! Can\'t convert to %s' % output_format)
 
-	extension = '.' + input_format
+	input_extension = '.' + input_format
+	output_extension = '.' + (output_format or input_format)
 
 	id = 0
 	instruments_xml = ''
 	for root, dirs, files in walk(samples_path, topdown=False):
 		if files:
 			# Filter FLAC files.
-			files = get_files(files, extension, layers)
+			files = get_files(files, input_extension, layers)
 			samples = len(files)
 
 			if samples == 0:
 				continue
 
-			process_files(root, files, drumkit_path, output_format)
+			files = process_files(root, files, drumkit_path, output_format)
 
 			# Compute position and length in layer.
 			length = (1 / samples) * (1 + (interleave / 2))
@@ -196,6 +202,9 @@ def main():
 
 			layers_xml = ''
 			for i, file in enumerate(files):
+				filename = basename(file)
+				if output_format:
+					filename = change_extension(filename, output_format)
 				min = i * offset
 				max = min + length
 				layers_xml += LAYER.format(
