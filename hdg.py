@@ -132,6 +132,7 @@ def process_files(root, files, path, output_format):
 		destination = join(path, file)
 		if output_format:
 			destination = change_extension(destination, output_format)
+		yield destination
 		if exists(destination):
 			continue
 		source = join(root, file)
@@ -139,7 +140,6 @@ def process_files(root, files, path, output_format):
 			check_call(['sox', source, destination], stdout=DEVNULL)
 		else:
 			copyfile(source, destination)
-		yield destination
 
 
 def parse():
