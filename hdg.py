@@ -7,6 +7,7 @@ from os import mkdir, walk
 from os.path import basename, exists, expanduser, join, splitext
 from shutil import copyfile
 from subprocess import DEVNULL, check_call
+from sys import platform
 
 
 """
@@ -93,16 +94,19 @@ LAYER = """<layer>
 </layer>
 """
 
-hydrogen_path = expanduser('~/.hydrogen/data/drumkits')
-interleave = 1 / 3
+if platform == "darwin":
+	hydrogen_path = '~/Library/Application Support/Hydrogen'
+else:
+	hydrogen_path = '~/.hydrogen'
 
+drumkits_path = expanduser(join(hydrogen_path, 'data/drumkits'))
 
 def change_extension(file, extension):
 	return '%s.%s' % (splitext(file)[0], extension)
 
 
 def create_folder(name):
-	path = join(hydrogen_path, name)
+	path = join(drumkits_path, name)
 	try:
 		mkdir(path)
 	except FileExistsError:
@@ -145,7 +149,7 @@ def process_files(root, files, path, output_format):
 def parse():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('folder', help='folder containing the samples')
-	parser.add_argument('name', help='name of the drumkit')
+	parser.add_argument('name', help='name of the drum kit')
 	parser.add_argument(
 		'--layers',
 		default=16,
