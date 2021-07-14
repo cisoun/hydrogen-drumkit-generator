@@ -123,6 +123,7 @@ def get_files(files, extension, layers=None):
 		if samples > layers:
 			delta = samples / layers
 			files = [files[math.floor(delta * i) - 1] for i in range(1, layers + 1)]
+	sort(files)  # Sort by natural order.
 	return files
 
 
@@ -145,6 +146,16 @@ def process_files(root, files, path, output_format):
 			check_call(['sox', source, destination], stdout=DEVNULL)
 		else:
 			copyfile(source, destination)
+
+
+def sort(list):
+	"""Reorder a list by natural order."""
+	if not list:
+		return
+	# Get length of longest name in list.
+	width = max(list, key=len)
+	# Pad left with 0s all short names in list.
+	list.sort(key=lambda x: '{:0>{width}}'.format(x, width=width).lower())
 
 
 def parse():
