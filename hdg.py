@@ -194,6 +194,7 @@ def main():
 	# Process...
 	id = 0
 	instruments_xml = ''
+	instrument_name_offset = len(samples_path)
 	for root, dirs, files in walk(samples_path, topdown=False):
 		if files:
 			# Filter FLAC files.
@@ -211,6 +212,7 @@ def main():
 
 			# Generate XML for current instrument.
 			layers_xml = ''
+			instrument_name = root[instrument_name_offset:]
 			for i, file in enumerate(files):
 				layers_xml += LAYER.format(
 					filename=basename(file),
@@ -218,7 +220,7 @@ def main():
 					max=min + length)
 			instrument_xml = INSTRUMENT.format(
 				id=id,
-				name=normalize(root),
+				name=normalize(instrument_name),
 				layers=layers_xml)
 			id = id + 1
 			instruments_xml += instrument_xml
