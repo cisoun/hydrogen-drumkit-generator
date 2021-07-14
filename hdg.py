@@ -172,6 +172,10 @@ def parse():
 
 
 def main():
+	# Check for Hydrogen folder.
+	if not exists(drumkits_path):
+		sys.exit('error: cannot find Hydrogen drumkits path (%s)' % drumkits_path)
+
 	args = parse()
 	name = args.name
 	layers = args.layers
