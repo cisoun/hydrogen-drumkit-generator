@@ -101,8 +101,7 @@ else:
 
 drumkits_path = expanduser(join(hydrogen_path, 'data/drumkits'))
 
-def change_extension(file, extension):
-	return '%s.%s' % (splitext(file)[0], extension)
+interleave = 1 / 3
 
 
 def create_folder(name):
@@ -117,6 +116,7 @@ def create_folder(name):
 
 
 def get_files(files, extension, layers=None):
+	"""Pick samples from a list of samples."""
 	files = sorted([f for f in files if splitext(f)[-1] == extension])
 	if layers:
 		samples = len(files)
@@ -127,6 +127,7 @@ def get_files(files, extension, layers=None):
 
 
 def normalize(text):
+	"""Remove all non alphanum chars."""
 	return re.sub('[\W]+', '', text)
 
 
@@ -135,7 +136,7 @@ def process_files(root, files, path, output_format):
 		print('Processing %s...' % file)
 		destination = join(path, file)
 		if output_format:
-			destination = change_extension(destination, output_format)
+			destination = '%s.%s' % (splitext(destination)[0], output_format)
 		yield destination
 		if exists(destination):
 			continue
@@ -186,11 +187,11 @@ def main():
 
 	# Check for SoX if necessary.
 	if output_format and not shutil.which('sox'):
-		sys.exit('error: sox not found! Can\'t convert to %s' % output_format)
+		sys.exit('error: sox not found (needed for format conversion)')
 
 	input_extension = '.' + input_format
-	output_extension = '.' + (output_format or input_format)
 
+	# Process...
 	id = 0
 	instruments_xml = ''
 	for root, dirs, files in walk(samples_path, topdown=False):
@@ -204,21 +205,17 @@ def main():
 
 			files = process_files(root, files, drumkit_path, output_format)
 
-			# Compute position and length in layer.
+			# Compute position and length of layer.
 			length = (1 / samples) * (1 + (interleave / 2))
 			offset = (1 - length) / (samples - 1)
 
+			# Generate XML for current instrument.
 			layers_xml = ''
 			for i, file in enumerate(files):
-				filename = basename(file)
-				if output_format:
-					filename = change_extension(filename, output_format)
-				min = i * offset
-				max = min + length
 				layers_xml += LAYER.format(
 					filename=basename(file),
-					min=min,
-					max=max)
+					min=i * offset,
+					max=min + length)
 			instrument_xml = INSTRUMENT.format(
 				id=id,
 				name=normalize(root),
