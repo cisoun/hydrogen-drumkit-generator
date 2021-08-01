@@ -218,7 +218,7 @@ def main():
 			files = process_files(root, files, drumkit_path, output_format)
 
 			# Compute position and length of layer.
-			length = (1 / samples) * (1 + (interleave / 2))
+			length = (1 / samples) * (1 + interleave)
 			offset = (1 - length) / (samples - 1)
 
 			# Generate XML for current instrument.
