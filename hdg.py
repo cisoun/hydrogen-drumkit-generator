@@ -225,10 +225,12 @@ def main():
 			layers_xml = ''
 			instrument_name = root[instrument_name_offset:]
 			for i, file in enumerate(files):
+				min = i * offset
+				max = min + length
 				layers_xml += LAYER.format(
 					filename=basename(file),
-					min=i * offset,
-					max=min + length)
+					min=min,
+					max=max)
 			instrument_xml = INSTRUMENT.format(
 				id=id,
 				name=normalize(instrument_name),
