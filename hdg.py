@@ -153,9 +153,9 @@ def sort(list):
 	if not list:
 		return
 	# Get length of longest name in list.
-	width = max(list, key=len)
+	width = len(max(list, key=len))
 	# Pad left with 0s all short names in list.
-	list.sort(key=lambda x: '{:0>{width}}'.format(x, width=width).lower())
+	list.sort(key=lambda x: x.rjust(width, '0'))
 
 
 def parse():
