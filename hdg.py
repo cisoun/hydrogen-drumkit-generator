@@ -3,8 +3,8 @@ import math
 import re
 import shutil
 import sys
-from os import mkdir, walk
-from os.path import basename, exists, expanduser, join, splitext
+from os import makedirs, walk
+from os.path import basename, exists, expanduser, join, sep, splitext
 from shutil import copyfile
 from subprocess import DEVNULL, check_call
 from sys import platform
@@ -102,61 +102,56 @@ else:
 hydrogen_path = expanduser(hydrogen_path)
 drumkits_path = join(hydrogen_path, 'data/drumkits')
 
-interleave = 1 / 3
+layers_interleaving = 1 / 3  # Interleave layers by their third.
 
 
-def create_folder(name):
+def copy_files(root, files, drumkit_path, output_format=None):
+	"""Copy the samples into the drum kit."""
+	for file in files:
+		print('Processing %s...' % file)
+		destination = join(drumkit_path, file)
+		# Change extension if output format is different.
+		if output_format:
+			destination = '.'.join((splitext(destination)[0], output_format))
+		if not exists(destination):
+			source = join(root, file)
+			if output_format:
+				check_call(['sox', source, destination], stdout=DEVNULL)
+			else:
+				copyfile(source, destination)
+		yield destination
+
+
+def get_drumkit_path(name):
+	"""Create and return the folder of the drum kit."""
 	path = join(drumkits_path, name)
-	try:
-		mkdir(path)
-	except FileExistsError:
-		pass
-	except Exception as e:
-		sys.exit(str(e))
+	if not exists(path):
+		try:
+			makedirs(path)
+		except Exception as e:
+			sys.exit('error: cannot create drum kit folder (%s)' % str(e))
 	return path
 
 
-def get_files(files, extension, layers=None):
+def pick_files(files, extension, layers=None):
 	"""Pick samples from a list of samples."""
-	files = sorted([f for f in files if splitext(f)[-1] == extension])
+	# Filter by extension.
+	files = list(filter(lambda f: splitext(f)[-1] == extension, files))
+	# If number of layers set, pick samples in list.
 	if layers:
 		samples = len(files)
+		# Use a linear interpolation to select the samples.
 		if samples > layers:
 			delta = samples / layers
-			files = [files[math.floor(delta * i) - 1] for i in range(1, layers + 1)]
-	sort(files)  # Sort by natural order.
+			files_range = range(1, layers + 1)
+			files = [files[math.floor(delta * i) - 1] for i in files_range]
+	# Sort by natural order.
+	if files:
+		# Get length of longest name in list.
+		length = len(max(files, key=len))
+		# Sort list by natural order by padding with 0s all short names.
+		files.sort(key=lambda x: x.rjust(length, '0'))
 	return files
-
-
-def normalize(text):
-	"""Remove all non alphanum chars."""
-	return re.sub('[\W]+', '', text)
-
-
-def process_files(root, files, path, output_format):
-	for file in files:
-		print('Processing %s...' % file)
-		destination = join(path, file)
-		if output_format:
-			destination = '%s.%s' % (splitext(destination)[0], output_format)
-		yield destination
-		if exists(destination):
-			continue
-		source = join(root, file)
-		if output_format:
-			check_call(['sox', source, destination], stdout=DEVNULL)
-		else:
-			copyfile(source, destination)
-
-
-def sort(list):
-	"""Reorder a list by natural order."""
-	if not list:
-		return
-	# Get length of longest name in list.
-	width = len(max(list, key=len))
-	# Pad left with 0s all short names in list.
-	list.sort(key=lambda x: x.rjust(width, '0'))
 
 
 def parse():
@@ -168,7 +163,6 @@ def parse():
 		default=16,
 		help='max layers per instrument (default: 16)',
 		type=int)
-
 	parser.add_argument(
 		'--from',
 		choices=['flac', 'wav'],
@@ -180,7 +174,6 @@ def parse():
 		choices=['flac', 'wav'],
 		dest='output_format',
 		help='output file format (requires SoX)')
-
 	return parser.parse_args()
 
 
@@ -193,7 +186,7 @@ def main():
 	name = args.name
 	layers = args.layers
 	samples_path = args.folder
-	drumkit_path = create_folder(name)
+	drumkit_path = get_drumkit_path(name)
 	input_format = args.input_format
 	output_format = args.output_format
 
@@ -203,45 +196,45 @@ def main():
 
 	input_extension = '.' + input_format
 
-	# Process...
-	id = 0
+	# Generate XML...
+	instrument_id = 0
 	instruments_xml = ''
 	instrument_name_offset = len(samples_path)
 	for root, dirs, files in walk(samples_path, topdown=False):
-		if files:
-			# Filter FLAC files.
-			files = get_files(files, input_extension, layers)
-			samples = len(files)
+		if not files:
+			continue
 
-			if samples == 0:
-				continue
+		files = pick_files(files, input_extension, layers)
 
-			files = process_files(root, files, drumkit_path, output_format)
+		samples = len(files)
+		if samples == 0:
+			continue
 
-			# Compute position and length of layer.
-			length = (1 / samples) * (1 + interleave)
-			offset = (1 - length) / (samples - 1)
+		files = copy_files(root, files, drumkit_path, output_format)
 
-			# Generate XML for current instrument.
-			layers_xml = ''
-			instrument_name = root[instrument_name_offset:]
-			for i, file in enumerate(files):
-				min = i * offset
-				max = min + length
-				layers_xml += LAYER.format(
-					filename=basename(file),
-					min=min,
-					max=max)
-			instrument_xml = INSTRUMENT.format(
-				id=id,
-				name=normalize(instrument_name),
-				layers=layers_xml)
-			id = id + 1
-			instruments_xml += instrument_xml
+		# Compute length and offset of layers.
+		length = (1 / samples) * (1 + layers_interleaving)
+		offset = (1 - length) / (samples - 1)
+
+		# Generate current instrument.
+		layers_xml = ''
+		instrument_name = re.sub(sep, ' ', root[instrument_name_offset:])
+		for i, file in enumerate(files):
+			min = i * offset
+			layers_xml += LAYER.format(
+				filename=basename(file),
+				min=min,
+				max=min + length)
+		instrument_xml = INSTRUMENT.format(
+			id=instrument_id,
+			name=instrument_name,
+			layers=layers_xml)
+		instrument_id = instrument_id + 1
+		instruments_xml += instrument_xml
 	xml = XML.format(name=name, instrumentList=instruments_xml)
 
 	# If no files were found...
-	if id == 0:
+	if instrument_id == 0:
 		sys.exit('error: no files found')
 
 	print('Writting XML...')
