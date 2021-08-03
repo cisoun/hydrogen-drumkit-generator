@@ -99,7 +99,8 @@ if platform == "darwin":
 else:
 	hydrogen_path = '~/.hydrogen'
 
-drumkits_path = expanduser(join(hydrogen_path, 'data/drumkits'))
+hydrogen_path = expanduser(hydrogen_path)
+drumkits_path = join(hydrogen_path, 'data/drumkits')
 
 interleave = 1 / 3
 
@@ -185,8 +186,8 @@ def parse():
 
 def main():
 	# Check for Hydrogen folder.
-	if not exists(drumkits_path):
-		sys.exit('error: cannot find Hydrogen drumkits path (%s)' % drumkits_path)
+	if not exists(hydrogen_path):
+		sys.exit('error: cannot find Hydrogen data (%s)' % hydrogen_path)
 
 	args = parse()
 	name = args.name
