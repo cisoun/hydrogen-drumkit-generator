@@ -112,7 +112,7 @@ def copy_files(root, files, drumkit_path, output_format=None):
 		destination = join(drumkit_path, file)
 		# Change extension if output format is different.
 		if output_format:
-			destination = '.'.join((splitext(destination)[0], output_format))
+			destination = splitext(destination)[0] + '.' + output_format
 		if not exists(destination):
 			source = join(root, file)
 			if output_format:
@@ -140,7 +140,7 @@ def pick_files(files, extension, layers=None):
 	# If number of layers set, pick samples in list.
 	if layers:
 		samples = len(files)
-		# Use a linear interpolation to select the samples.
+		# Select samples by linear interpolation.
 		if samples > layers:
 			delta = samples / layers
 			files_range = range(1, layers + 1)
